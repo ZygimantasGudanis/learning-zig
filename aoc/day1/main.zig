@@ -28,7 +28,7 @@ pub fn main() !void {
     while (reader.streamUntilDelimiter(writer, '\n', null)) : (line_no += 1) {
         defer line.clearRetainingCapacity();
 
-        const number = [2]u8{ getFirstChar(line, numbers), getLastChar(line, numbers) };
+        const number = [2]u8{ try getFirstChar(line, numbers), try getLastChar(line, numbers) };
         const integer = try std.fmt.parseInt(i32, &number, 10);
         totalNumber += integer;
 
@@ -41,7 +41,7 @@ pub fn main() !void {
     debug.print("Result {}", .{totalNumber});
 }
 
-fn getFirstChar(array: std.ArrayList(u8), filter: []const u8) u8 {
+fn getFirstChar(array: std.ArrayList(u8), filter: []const u8) !u8 {
     for (array.items) |char| {
         for (filter) |filt| {
             if (char == filt) {
@@ -49,10 +49,10 @@ fn getFirstChar(array: std.ArrayList(u8), filter: []const u8) u8 {
             }
         }
     }
-    return 0;
+    return error.NumberNotFound;
 }
 
-fn getLastChar(array: std.ArrayList(u8), filter: []const u8) u8 {
+fn getLastChar(array: std.ArrayList(u8), filter: []const u8) !u8 {
     var length = array.items.len - 1;
     while (length >= 0) : (length -= 1) {
         for (filter) |filt| {
@@ -61,5 +61,9 @@ fn getLastChar(array: std.ArrayList(u8), filter: []const u8) u8 {
             }
         }
     }
-    return 0;
+    return error.NumberNotFound;
 }
+
+const Errors = error{
+    NumberNotFound,
+};
