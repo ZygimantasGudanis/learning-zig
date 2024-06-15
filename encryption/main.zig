@@ -173,20 +173,20 @@ test "TEst with test text" {
                 std.debug.print("|\n", .{});
             }
         }
-    };
+    }.print;
 
     std.debug.print("\n", .{});
     var array = testText;
-    print.print(&array);
+    print(&array);
 
     std.debug.print("Substitution\n", .{});
     substitution(&array);
 
     std.debug.print("RowShift\n", .{});
     rowShift(&array);
-    print.print(&array);
+    print(&array);
 
     std.debug.print("Column shift\n", .{});
     array = mixColums(array);
-    print.print(&array);
+    print(&array);
 }
