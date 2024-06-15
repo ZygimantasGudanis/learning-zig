@@ -101,10 +101,14 @@ fn addKey(data: block, key: block) void {
     }
 }
 
-fn substitution(byte: u8) u8 {
-    const x = byte / 16;
-    const y = byte % 16;
-    return sBox[x][y];
+fn substitution(array: [][4]u8) void {
+    for (0..array.len) |row| {
+        for (0..array[row].len) |column| {
+            const x = array[row][column] / 16;
+            const y = array[row][column] % 16;
+            array[row][column] = sBox[x][y];
+        }
+    }
 }
 
 fn rowShift(body: [][4]u8) void {
@@ -160,43 +164,29 @@ fn gmul(a: u8, b: u8) u8 {
 }
 
 test "TEst with test text" {
+    const print = struct {
+        pub fn print(arr: [][4]u8) void {
+            for (arr) |row| {
+                for (row) |item| {
+                    std.debug.print("|{x}", .{item});
+                }
+                std.debug.print("|\n", .{});
+            }
+        }
+    };
+
     std.debug.print("\n", .{});
     var array = testText;
-    // for (array) |row| {
-    //     for (row) |item| {
-    //         std.debug.print("|{x}", .{item});
-    //     }
-    //     std.debug.print("|\n", .{});
-    // }
+    print.print(&array);
 
     std.debug.print("Substitution\n", .{});
-    for (array, 0..) |row, i| {
-        for (row, 0..) |_, j| {
-            array[i][j] = substitution(array[i][j]);
-        }
-    }
-    // for (array) |row| {
-    //     for (row) |item| {
-    //         std.debug.print("|{x}", .{item});
-    //     }
-    //     std.debug.print("|\n", .{});
-    // }
+    substitution(&array);
 
     std.debug.print("RowShift\n", .{});
     rowShift(&array);
-    for (array) |row| {
-        for (row) |item| {
-            std.debug.print("|{x}", .{item});
-        }
-        std.debug.print("|\n", .{});
-    }
+    print.print(&array);
 
     std.debug.print("Column shift\n", .{});
     array = mixColums(array);
-    for (array) |row| {
-        for (row) |item| {
-            std.debug.print("|{x}", .{item});
-        }
-        std.debug.print("|\n", .{});
-    }
+    print.print(&array);
 }
