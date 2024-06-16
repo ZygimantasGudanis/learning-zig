@@ -167,16 +167,17 @@ fn gmul(a: u8, b: u8) u8 {
     return p;
 }
 
-fn rcon(value: *u8) u8 {
+fn rcon(value: u8) u8 {
     var c: u8 = 1;
+    var temp = value;
 
-    if (value.* == 0) {
+    if (temp == 0) {
         return 0;
     }
 
-    while (value.* != 1) {
+    while (temp != 1) {
         c = gmul(c, 2);
-        value.* -= 1;
+        temp -= 1;
     }
     return c;
 }
@@ -186,10 +187,10 @@ fn rotate(val: *[4]u8) void {
     for (0..val.*.len - 1) |i| {
         val.*[i] = val.*[i + 1];
     }
-    val.*[val.len - 1] = a;
+    val.*[3] = a;
 }
 
-fn schedule_core(in: *[4]u8, val: *u8) void {
+fn schedule_core(in: *[4]u8, val: u8) void {
     rotate(in);
 
     for (0..4) |i| {
@@ -197,22 +198,23 @@ fn schedule_core(in: *[4]u8, val: *u8) void {
         const y = in[i] % 16;
         in[i] = sBox[x][y];
     }
-    in[0] ^= rcon(val);
+    in.*[0] ^= rcon(val);
 }
 
-fn keyExpansion(key: *u8) void {
+fn keyExpansion(key: *const []u8) void {
     var c: u8 = 16;
     var t: [4]u8 = [4]u8{ 0, 0, 0, 0 };
     var i: u8 = 1;
     while (c < 176) {
         for (0..4) |a| {
-            t[a] = key[a + c - 4];
+            t[a] = key.*[a + c - 4];
         }
         if (c % 16 == 0) {
-            schedule_core(&t, &i);
+            schedule_core(&t, i);
+            i += 1;
         }
         for (0..4) |a| {
-            key[c] = key[c - 16] ^ t[a];
+            key.*[c] = key.*[c - 16] ^ t[a];
             c += 1;
         }
     }
@@ -239,10 +241,17 @@ fn keyExpansion(key: *u8) void {
 // }
 
 test "KeyExpansion" {
-    var input = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    keyExpansion(&input);
+    const alloc = std.heap.page_allocator;
+    const array = try alloc.alloc(u8, 176);
+    for (0..16) |i| {
+        array[i] = 0;
+    }
+    keyExpansion(&array);
 
-    for (input) |item| {
+    for (array, 0..) |item, i| {
+        if (i % 16 == 0) {
+            std.debug.print("|\n", .{});
+        }
         std.debug.print("|{x}", .{item});
     }
     std.debug.print("|\n", .{});
