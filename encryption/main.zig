@@ -167,22 +167,84 @@ fn gmul(a: u8, b: u8) u8 {
     return p;
 }
 
-test "TEst with test text" {
-    var key = hardKey;
-    printArray(&key);
+fn rcon(value: *u8) u8 {
+    var c: u8 = 1;
 
-    std.debug.print("\n", .{});
-    var array = testText;
-    printArray(&array);
+    if (value.* == 0) {
+        return 0;
+    }
 
-    std.debug.print("Substitution\n", .{});
-    substitution(&array);
+    while (value.* != 1) {
+        c = gmul(c, 2);
+        value.* -= 1;
+    }
+    return c;
+}
 
-    std.debug.print("RowShift\n", .{});
-    rowShift(&array);
-    printArray(&array);
+fn rotate(val: *[4]u8) void {
+    const a = val.*[0];
+    for (0..val.*.len - 1) |i| {
+        val.*[i] = val.*[i + 1];
+    }
+    val.*[val.len - 1] = a;
+}
 
-    std.debug.print("Column shift\n", .{});
-    array = mixColums(array);
-    printArray(&array);
+fn schedule_core(in: *[4]u8, val: *u8) void {
+    rotate(in);
+
+    for (0..4) |i| {
+        const x = in[i] / 16;
+        const y = in[i] % 16;
+        in[i] = sBox[x][y];
+    }
+    in[0] ^= rcon(val);
+}
+
+fn keyExpansion(key: *u8) void {
+    var c: u8 = 16;
+    var t: [4]u8 = [4]u8{ 0, 0, 0, 0 };
+    var i: u8 = 1;
+    while (c < 176) {
+        for (0..4) |a| {
+            t[a] = key[a + c - 4];
+        }
+        if (c % 16 == 0) {
+            schedule_core(&t, &i);
+        }
+        for (0..4) |a| {
+            key[c] = key[c - 16] ^ t[a];
+            c += 1;
+        }
+    }
+}
+
+// test "TEst with test text" {
+//     var key = hardKey;
+//     printArray(&key);
+
+//     std.debug.print("\n", .{});
+//     var array = testText;
+//     printArray(&array);
+
+//     std.debug.print("Substitution\n", .{});
+//     substitution(&array);
+
+//     std.debug.print("RowShift\n", .{});
+//     rowShift(&array);
+//     printArray(&array);
+
+//     std.debug.print("Column shift\n", .{});
+//     array = mixColums(array);
+//     printArray(&array);
+// }
+
+test "KeyExpansion" {
+    var input = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    keyExpansion(&input);
+
+    for (input) |item| {
+        std.debug.print("|{x}", .{item});
+    }
+    std.debug.print("|\n", .{});
+    //printArray(input);
 }
