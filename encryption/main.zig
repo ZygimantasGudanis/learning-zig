@@ -1,4 +1,15 @@
 const std = @import("std");
+const printArray = struct {
+    pub fn print(arr: [][4]u8) void {
+        std.debug.print("\n", .{});
+        for (arr) |row| {
+            for (row) |item| {
+                std.debug.print("|{x}", .{item});
+            }
+            std.debug.print("|\n", .{});
+        }
+    }
+}.print;
 
 const sBox: [16][16]u8 = [16][16]u8{
     [16]u8{ 0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76 },
@@ -47,35 +58,36 @@ const block = struct { items: [4][4]i32 };
 
 pub fn main() !void {
     std.debug.print("AES 128 \n", .{});
-    var i: u8 = 0;
-    var result = text;
-    while (i < 10) : (i += 1) {
-        // Substitute
-        for (result) |row| {
-            for (row) |value| {
-                value = substitution(value);
-            }
-        }
+    // const result = testText;
+    // const key = hardKey;
 
-        // RowShift
-        rowShift(&result);
-    }
+    const result = aes128(testText, hardKey);
+
+    // TODO: add key expansion logic
+    // TODO:
+
+    printArray(&result);
 }
 
-// 128 bit 10 eounds
+fn aes128(data: [4][4]u8, encryptionKey: [4][4]u8) [4][4]u8 {
+    var result = data;
+    var key = encryptionKey;
+    addKey(&result, &key);
 
-// 2. XOR with key
-// 3. Substitution
-// SBOX
+    for (0..9) |_| {
+        // std.debug.print("\n{} round:\n", .{(i + 1)});
+        substitution(&result);
+        rowShift(&result);
+        result = mixColums(result);
+        addKey(&result, &key);
+    }
 
-// 4. Shift row
-// First row not Change
-// Second row shift by 1 to left
-// third row shift by 2 to left
-// fourth row shift by 3 to left
+    substitution(&result);
+    rowShift(&result);
+    addKey(&result, &key);
 
-// 5. Mix Column
-//  Matrix multiplication with mixer
+    return result;
+}
 
 fn generatekey(size: u8) ![]u8 {
     const alloc = std.heap.page_allocator;
@@ -91,12 +103,10 @@ fn generatekey(size: u8) ![]u8 {
     return array.items;
 }
 
-fn addKey(data: block, key: block) void {
-    var i: u8 = 0;
-    var u: u8 = 0;
-    while (i < data.items.len) : (i += 1) {
-        while (u < data.items[i].len) : (u += 1) {
-            data.items[i][u] = data.items[i][u] ^ key[i][u];
+fn addKey(data: [][4]u8, key: [][4]u8) void {
+    for (0..data.len) |i| {
+        for (0..data[i].len) |u| {
+            data[i][u] = data[i][u] ^ key[i][u];
         }
     }
 }
@@ -124,12 +134,6 @@ fn rowShift(body: [][4]u8) void {
         }
     }
 }
-const mixer = [_][4]i32{
-    [_]i32{ 2, 3, 1, 1 },
-    [_]i32{ 1, 2, 3, 1 },
-    [_]i32{ 1, 1, 2, 3 },
-    [_]i32{ 3, 1, 1, 2 },
-};
 
 fn mixColums(body: [4][4]u8) [4][4]u8 {
     var result = body;
@@ -164,29 +168,21 @@ fn gmul(a: u8, b: u8) u8 {
 }
 
 test "TEst with test text" {
-    const print = struct {
-        pub fn print(arr: [][4]u8) void {
-            for (arr) |row| {
-                for (row) |item| {
-                    std.debug.print("|{x}", .{item});
-                }
-                std.debug.print("|\n", .{});
-            }
-        }
-    }.print;
+    var key = hardKey;
+    printArray(&key);
 
     std.debug.print("\n", .{});
     var array = testText;
-    print(&array);
+    printArray(&array);
 
     std.debug.print("Substitution\n", .{});
     substitution(&array);
 
     std.debug.print("RowShift\n", .{});
     rowShift(&array);
-    print(&array);
+    printArray(&array);
 
     std.debug.print("Column shift\n", .{});
     array = mixColums(array);
-    print(&array);
+    printArray(&array);
 }
