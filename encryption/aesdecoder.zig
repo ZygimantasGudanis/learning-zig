@@ -1,4 +1,5 @@
 const std = @import("std");
+const common = @import("common.zig");
 
 const inverseSBox: [16][16]u8 = [16][16]u8{
     [16]u8{ 0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb },
@@ -18,3 +19,83 @@ const inverseSBox: [16][16]u8 = [16][16]u8{
     [16]u8{ 0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61 },
     [16]u8{ 0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d },
 };
+
+pub fn aes128(data: [4][4]u8, encryptionKey: [16]u8) ![4][4]u8 {
+    var result = data;
+    const allocator = std.heap.page_allocator;
+
+    var expandedKey = try allocator.alloc(u8, 176);
+    for (0..16) |i| {
+        expandedKey[i] = encryptionKey[i];
+    }
+    common.keyExpansion(&expandedKey);
+    var keyIndex: u16 = 176;
+    var keyBlock = common.makeKeyBlocks(expandedKey[keyIndex - 16 .. keyIndex]);
+    keyIndex -= 16;
+
+    addKey(&result, &keyBlock);
+    rowShiftInv(&result);
+    substitutionInv(&result);
+
+    for (0..9) |_| {
+        keyBlock = common.makeKeyBlocks(expandedKey[keyIndex - 16 .. keyIndex]);
+        keyIndex -= 16;
+
+        addKey(&result, &keyBlock);
+        result = mixColumsInv(result);
+        rowShiftInv(&result);
+        substitutionInv(&result);
+
+        // std.debug.print("\n{} round:\n", .{(i + 1)});
+        // printArray(&result);
+    }
+
+    keyBlock = common.makeKeyBlocks(expandedKey[keyIndex - 16 .. keyIndex]);
+    keyIndex -= 16;
+    addKey(&result, &keyBlock);
+    return result;
+}
+
+fn addKey(data: [][4]u8, key: [][4]u8) void {
+    for (0..data.len) |i| {
+        for (0..data[i].len) |u| {
+            data[i][u] = data[i][u] ^ key[i][u];
+        }
+    }
+}
+
+fn substitutionInv(data: [][4]u8) void {
+    for (0..data.len) |i| {
+        for (0..data.len) |j| {
+            const x = data[i][j] / 16;
+            const y = data[i][j] % 16;
+            data[i][j] = inverseSBox[x][y];
+        }
+    }
+}
+
+fn mixColumsInv(body: [4][4]u8) [4][4]u8 {
+    var result = body;
+    const gmul = common.gmul;
+    for (body, 0..) |_, i| {
+        result[0][i] = gmul(body[0][i], 14) ^ gmul(body[1][i], 11) ^ gmul(body[2][i], 13) ^ gmul(body[3][i], 9);
+        result[1][i] = gmul(body[0][i], 9) ^ gmul(body[1][i], 14) ^ gmul(body[2][i], 11) ^ gmul(body[3][i], 13);
+        result[2][i] = gmul(body[0][i], 13) ^ gmul(body[1][i], 9) ^ gmul(body[2][i], 14) ^ gmul(body[3][i], 11);
+        result[3][i] = gmul(body[0][i], 11) ^ gmul(body[1][i], 13) ^ gmul(body[2][i], 9) ^ gmul(body[3][i], 14);
+    }
+
+    return result;
+}
+
+fn rowShiftInv(data: [][4]u8) void {
+    for (1..data.len) |i| {
+        for (data[i], 0..data[i].len) |item, j| {
+            var pos = j + i;
+            if (pos >= data[i].len) {
+                pos -= data[i].len;
+            }
+
+            data[i][pos] = item;
+        }
+    }
+}
