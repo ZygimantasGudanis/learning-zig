@@ -15,9 +15,12 @@ fn exampleImpl() !void {
     for (0..16) |_| {
         _ = try conn.write(" Hello world{}");
         std.time.sleep(1_000_000);
-        // var buf: [256]u8 = undefined;
-        // _ = try conn.read(buf[0..]);
+        var buf: [256]u8 = undefined;
+        const bytes = try conn.read(buf[0..]);
+        std.debug.print("Size: {d} | Output: {s}\n", .{ bytes, buf[0..bytes] });
     }
+    std.time.sleep(1_000_000);
+    //while (true) {}
 }
 
 fn exampleImpl2() !void {
