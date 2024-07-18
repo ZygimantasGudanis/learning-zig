@@ -1,6 +1,8 @@
 const std = @import("std");
 const net = std.net;
 
+const incommingConnMutex = std.Thread.Mutex{};
+
 pub fn main() !void {
     try loop();
 }
