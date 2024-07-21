@@ -42,8 +42,12 @@ pub fn connectedClient(alloc: std.mem.Allocator, conns: *std.ArrayList(net.Serve
     while (true) {
         std.time.sleep(1_000);
         if (incommingConns.*.items.len > 0) {
+            sourceLock(incommingConnMutex);
+
             try conns.appendSlice(incommingConns.*.items);
             incommingConns.*.clearAndFree();
+
+            sourceUnLock(incommingConnMutex);
         }
         if (conns.*.items.len == 0) {
             continue;
@@ -143,12 +147,20 @@ fn accepConnectionLoop(server: *std.net.Server, incommingConns: *std.ArrayList(n
             continue;
         };
 
-        // var mutex = std.Thread.Mutex{};
-
-        // const isLocked = mutex.tryLock();
-        // if (isLocked) {
+        sourceLock(incommingConnMutex);
         try incommingConns.append(conn);
-        // }
-        // mutex.unlock();
+        sourceUnLock(incommingConnMutex);
     }
+}
+
+fn sourceLock(mutex: std.Thread.Mutex) void {
+    var m = mutex;
+    while (!m.tryLock()) {
+        std.time.sleep(1_000_000);
+    }
+}
+
+fn sourceUnLock(mutex: std.Thread.Mutex) void {
+    var m = mutex;
+    m.unlock();
 }
